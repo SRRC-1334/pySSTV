@@ -54,7 +54,7 @@ class SSTV(object):
             wav.setnchannels(self.nchannels)
             wav.setsampwidth(self.bits // 8)
             wav.setframerate(self.samples_per_sec)
-            wav.writeframes(data.tostring())
+            wav.writeframes(data.tobytes())
 
     def gen_samples(self):
         """generates discrete samples from gen_values()
@@ -84,12 +84,12 @@ class SSTV(object):
         samples = 0
         factor = 2 * pi / self.samples_per_sec
         sample = 0
-        for freq, msec in self.gen_freq_bits():
+        for freq, msec, alpha in self.gen_freq_bits():
             samples += spms * msec
             tx = int(samples)
             freq_factor = freq * factor
             for sample in range(tx):
-                yield sin(sample * freq_factor + offset)
+                yield sin(sample * freq_factor + offset) * alpha
             offset += (sample + 1) * freq_factor
             samples -= tx
 
@@ -100,11 +100,11 @@ class SSTV(object):
         """
         if self.vox_enabled:
             for freq in (1900, 1500, 1900, 1500, 2300, 1500, 2300, 1500):
-                yield freq, 100
-        yield FREQ_VIS_START, MSEC_VIS_START
-        yield FREQ_SYNC, MSEC_VIS_SYNC
-        yield FREQ_VIS_START, MSEC_VIS_START
-        yield FREQ_SYNC, MSEC_VIS_BIT  # start bit
+                yield freq, 100, 1
+        yield FREQ_VIS_START, MSEC_VIS_START, 1
+        yield FREQ_SYNC, MSEC_VIS_SYNC, 1
+        yield FREQ_VIS_START, MSEC_VIS_START, 1
+        yield FREQ_SYNC, MSEC_VIS_BIT, 1  # start bit
         vis = self.VIS_CODE
         num_ones = 0
         for _ in range(7):
@@ -112,10 +112,10 @@ class SSTV(object):
             vis >>= 1
             num_ones += bit
             bit_freq = FREQ_VIS_BIT1 if bit == 1 else FREQ_VIS_BIT0
-            yield bit_freq, MSEC_VIS_BIT
+            yield bit_freq, MSEC_VIS_BIT, 1
         parity_freq = FREQ_VIS_BIT1 if num_ones % 2 == 1 else FREQ_VIS_BIT0
-        yield parity_freq, MSEC_VIS_BIT
-        yield FREQ_SYNC, MSEC_VIS_BIT  # stop bit
+        yield parity_freq, MSEC_VIS_BIT, 1
+        yield FREQ_SYNC, MSEC_VIS_BIT, 1  # stop bit
         for freq_tuple in self.gen_image_tuples():
             yield freq_tuple
         for fskid_byte in map(ord, self.fskid_payload):
@@ -123,7 +123,7 @@ class SSTV(object):
                 bit = fskid_byte & 1
                 fskid_byte >>= 1
                 bit_freq = FREQ_FSKID_BIT1 if bit == 1 else FREQ_FSKID_BIT0
-                yield bit_freq, MSEC_FSKID_BIT
+                yield bit_freq, MSEC_FSKID_BIT, 1
 
     def gen_image_tuples(self):
         return []
@@ -133,7 +133,7 @@ class SSTV(object):
                 ''.join(chr(ord(c) - 0x20) for c in text))
 
     def horizontal_sync(self):
-        yield FREQ_SYNC, self.SYNC
+        yield FREQ_SYNC, self.SYNC, 1
 
 
 def byte_to_freq(value):

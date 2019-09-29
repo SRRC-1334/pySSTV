@@ -11,18 +11,19 @@ RED, GREEN, BLUE = range(3)
 
 class ColorSSTV(GrayscaleSSTV):
     def on_init(self):
-        self.pixels = self.image.convert('RGB').load()
+        self.pixels = self.image.convert('RGBA').load()
 
     def encode_line(self, line):
         msec_pixel = self.SCAN / self.WIDTH
         image = self.pixels
-        for index in self.COLOR_SEQ:
+        for index in self.COLOR_SEQ: 
             for item in self.before_channel(index):
                 yield item
             for col in range(self.WIDTH):
                 pixel = image[col, line]
+                alpha = image[col, line][3] / 255
                 freq_pixel = byte_to_freq(pixel[index])
-                yield freq_pixel, msec_pixel
+                yield freq_pixel, msec_pixel, alpha
             for item in self.after_channel(index):
                 yield item
 
@@ -43,10 +44,10 @@ class MartinM1(ColorSSTV):
 
     def before_channel(self, index):
         if index == GREEN:
-            yield FREQ_BLACK, self.INTER_CH_GAP
+            yield FREQ_BLACK, self.INTER_CH_GAP, 1
 
     def after_channel(self, index):
-        yield FREQ_BLACK, self.INTER_CH_GAP
+        yield FREQ_BLACK, self.INTER_CH_GAP, 1
 
 
 class MartinM2(MartinM1):
@@ -68,7 +69,7 @@ class ScottieS1(MartinM1):
         if index == RED:
             for item in MartinM1.horizontal_sync(self):
                 yield item
-        yield FREQ_BLACK, self.INTER_CH_GAP
+        yield FREQ_BLACK, self.INTER_CH_GAP, 1
 
 
 class ScottieS2(ScottieS1):
