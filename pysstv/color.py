@@ -160,20 +160,23 @@ class PD90(ColorSSTV):
 
     def gen_image_tuples(self):
         yuv = self.image.convert('YCbCr').load()
+        rgba = self.image.convert('RGBA').load()
         for line in range(0, self.HEIGHT, 2):
             for item in self.horizontal_sync():
                 yield item
-            yield FREQ_BLACK, self.PORCH
+            yield FREQ_BLACK, self.PORCH, 0
+            alpha0 = [rgba[col, line][3] / 255 for col in range(self.WIDTH)]
+            alpha1 = [rgba[col, line + 1][3] / 255 for col in range(self.WIDTH)]
             pixels0 = [yuv[col, line] for col in range(self.WIDTH)]
             pixels1 = [yuv[col, line + 1] for col in range(self.WIDTH)]
-            for p in pixels0:
-                yield byte_to_freq(p[0]), self.PIXEL
-            for p0, p1 in zip(pixels0, pixels1):
-                yield byte_to_freq((p0[2] + p1[2]) / 2), self.PIXEL
-            for p0, p1 in zip(pixels0, pixels1):
-                yield byte_to_freq((p0[1] + p1[1]) / 2), self.PIXEL
-            for p in pixels1:
-                yield byte_to_freq(p[0]), self.PIXEL
+            for idx, p in enumerate(pixels0):
+                yield byte_to_freq(p[0]), self.PIXEL, alpha0[idx]
+            for idx, (p0, p1) in enumerate(zip(pixels0, pixels1)):
+                yield byte_to_freq((p0[2] + p1[2]) / 2), self.PIXEL, alpha0[idx]
+            for idx, (p0, p1) in enumerate(zip(pixels0, pixels1)):
+                yield byte_to_freq((p0[1] + p1[1]) / 2), self.PIXEL, alpha0[idx]
+            for idx, p in enumerate(pixels1):
+                yield byte_to_freq(p[0]), self.PIXEL, alpha1[idx]
 
 
 class PD120(PD90):
